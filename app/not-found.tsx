@@ -1,0 +1,1 @@
+export default function NotFound() { return <main className="access-page wrap"><span className="mono">404 / NOT FOUND</span><h1>Nothing here. Yet.</h1><p>This page may have moved, or the address may be incomplete.</p><a className="primary-button" href="/">Back to portfolio ↗</a></main>; }
