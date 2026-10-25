@@ -13,6 +13,8 @@ export async function PUT(request: Request) {
   let value;
   try { value = contentSchema.safeParse(JSON.parse(body)); } catch { return Response.json({ error: "Invalid JSON" }, { status: 400 }); }
   if (!value.success) return Response.json({ error: value.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; ") }, { status: 400 });
-  await writeContent(value.data);
-  return Response.json({ saved: true });
+  try {
+    await writeContent(value.data);
+    return Response.json({ saved: true });
+  } catch { return Response.json({ error: "Could not save changes. Please check the editing backend and try again." }, { status: 503 }); }
 }

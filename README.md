@@ -1,85 +1,108 @@
 # Shirsho Karmakar — Portfolio
 
-A restrained, responsive portfolio for Shirsho Karmakar: B.Tech CSE student at Siliguri Institute of Technology, expected graduation 2028. The design uses charcoal, warm white, a muted sage accent, serif display typography, and custom project illustrations. No external font service is required.
+A responsive portfolio for Shirsho Karmakar, a B.Tech CSE student at Siliguri Institute of Technology, expected graduation 2028. It uses Next.js, React, TypeScript and plain CSS, with Supabase for optional editing, storage and authentication.
 
-## What is included
+The public website works immediately without environment variables or visitor sign-in. It includes the two existing projects, education, skills, contact details, a printable résumé, dark/light/system themes and a custom SVG favicon.
 
-- Dark by default, with persistent light and system theme options.
-- Verified descriptions of Chokher Alo and Orbit, repository links, expandable notes, and technology labels.
-- About, core skills, education, and contact sections.
-- Custom SVG monogram favicon.
-- A printable résumé at `/cv`, built from the same content as the portfolio.
-- A protected `/admin` dashboard for adding, editing, deleting and reordering projects; drafts; screenshot uploads; profile edits; and a PDF CV upload.
-- Cloudflare D1 persistence and R2 file storage. Project data is not kept in browser storage.
-- Server-side authorization, request-origin checks, content validation, file type/signature checks, and a 5 MB upload limit.
+## Deploy to Vercel
 
-## Preview the design without installing dependencies
+Import `Shirsho-Karmakar/shirsho-portfolio` from GitHub, or redeploy the latest `main` commit if it is already imported.
 
-Open `outputs/review/index.html` directly in a browser. This is an offline review export of the actual React UI. The export supports the portfolio, theme controls, project notes, a dashboard interface preview, and a printable résumé.
+| Setting | Value |
+| --- | --- |
+| Framework preset | Next.js |
+| Root directory | `./` |
+| Install command | `npm ci` |
+| Build command | `npm run build` |
+| Output directory | `.next` (Next.js default) |
+| Node.js | 22.x |
 
-The offline dashboard is an interface preview. Saving, uploading, and authentication require the running application. The review export is ignored by Git and is not a production deployment.
+`vercel.json` declares the framework and build settings. The build runs `next build`, which generates `.next/routes-manifest.json`. Clear any old Vite/Vinext/Workers build overrides in the Vercel dashboard. No Turborepo setup or custom output path is needed.
 
-## Run the application
+The public portfolio and `/cv` require no backend configuration. Vercel's Git integration can redeploy future pushes to `main`. In **Settings → Deployment Protection**, ensure the production domain is publicly accessible so recruiters do not have to sign in to Vercel. The dashboard has its own separate authentication.
 
-Use Node.js 22.13 or later and a network-enabled environment:
+## Activate the private dashboard
+
+The dashboard at `/admin` uses your own email and password, independently of ChatGPT. You need one Supabase project for the database, file storage and administrator account.
+
+1. Create a project at [Supabase](https://supabase.com/dashboard).
+2. Open its SQL Editor and run [`supabase/setup.sql`](supabase/setup.sql). This creates the content table and a private `portfolio-assets` bucket. Direct anonymous and signed-in database access is denied; the application's server authorizes operations.
+3. In **Authentication → Users**, create a confirmed user with email `2005shirsho@gmail.com` and a password you choose. The email must be confirmed, including when creating the account manually. Disable public signups if this project is only for this portfolio.
+4. In the project settings, copy the project URL, publishable key and secret key. Enter these directly into your Vercel project's environment variables; do not put keys or passwords in GitHub or chat.
+5. Set these Vercel environment variables for Production (and Preview if you want preview deployments to use this backend):
+
+| Variable | Value |
+| --- | --- |
+| `SUPABASE_URL` | Your project URL, such as `https://your-project.supabase.co` |
+| `SUPABASE_PUBLISHABLE_KEY` | Your `sb_publishable_...` key |
+| `SUPABASE_SECRET_KEY` | Your server-only `sb_secret_...` key |
+| `ADMIN_EMAIL` | `2005shirsho@gmail.com` |
+
+6. Redeploy after adding or changing environment variables.
+7. Open `/admin` and sign in with the administrator email and the password you created in Supabase.
+
+Optional variables:
+
+- `SUPABASE_STORAGE_BUCKET`: defaults to `portfolio-assets`, matching the setup SQL.
+- `NEXT_PUBLIC_SITE_URL`: your production URL or custom domain for metadata. Vercel's production URL is detected automatically when this is omitted.
+- Legacy Supabase projects can use `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` instead of publishable/secret keys. New key types are preferred.
+
+Do not give any secret/service-role key a `NEXT_PUBLIC_` prefix. All backend requests and secret keys stay on the server. Only the configured, provider-verified and confirmed administrator can edit. Caller-supplied identity headers cannot grant access.
+
+Before connecting all backend settings, `/admin` shows a setup notice. That does not restrict public portfolio access. After connecting the backend, failures to read existing saved data are reported rather than silently overwriting it with initial content.
+
+## Update projects and your CV
+
+- Add or edit projects in `/admin`. Drafts can be unfinished and stay off the public page.
+- Add descriptions, project notes, technologies, repository/live links, and screenshots.
+- Tick **Published** and choose **Save changes** to make a project visible.
+- Use **Move up** and **Move down** to set project order.
+- Update the About text, skills and graduation year in the profile section.
+- Upload a PDF CV when ready. Until then, the footer links to the printable résumé at `/cv`.
+
+Uploads accept PNG, JPEG, WebP and PDF, up to **4 MB**. This keeps multipart requests below Vercel's function request limit. Screenshots must be images and the CV must be a PDF. Files are held in a private bucket and delivered through the application's media endpoint; anyone with an application's media URL can read that file. Use files intended for sharing. Removing an attachment unlinks it without deleting the underlying stored object.
+
+The editor renews expired access sessions before saving or uploading. Sessions use HttpOnly cookies. Sign out revokes the current provider session and clears local cookies. If you need to sign in again while editing, use another tab and retry the save so your unsaved work stays in place.
+
+## Local development
+
+Use Node.js 22.x:
 
 ```sh
-npm run install:ci
-npm run build
-node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_portfolio_content.sql
+npm ci
 npm run dev
 ```
 
-Apply the initial migration only once to a given local database. Wrangler data in `.wrangler/state` is separate from hosted data. See `docs/STARTER.md` for the retained starter's runtime and hosting details.
-
-For local dashboard development, put `ADMIN_EMAIL=seedy@sites.test` in an ignored `.dev.vars` file. The starter's loopback-only mock sign-in uses that account. Visit `/signin-with-chatgpt?return_to=/admin`. This local override must not be deployed. In production, the default allowed administrator is `2005shirsho@gmail.com`; it can be overridden using the hosted `ADMIN_EMAIL` runtime variable.
-
-## Manage your portfolio
-
-1. Open `/admin` and sign in using the allowed administrator email.
-2. Choose **Add**, enter the project's title and category, and save an unfinished project as a draft if needed.
-3. Add the description, project notes, technologies, repository URL, optional live URL, and optional screenshot.
-4. Tick **Published** and choose **Save changes** to show it on the portfolio.
-5. Use **Move up** and **Move down** to choose display order.
-
-Uploads accept PNG, JPEG, WebP and PDF, up to 5 MB. Screenshots must be images; the CV must be a PDF. Uploaded files have unguessable URLs, but anyone with an uploaded file's URL can read it. Use files intended for sharing. Removing an attachment unlinks it from the portfolio; it does not delete the underlying storage object.
-
-The footer points to the printable résumé until a PDF CV is uploaded. After uploading a CV and saving, it points to that PDF instead.
-
-The dashboard uses the hosting platform's ChatGPT sign-in. The allowed email must match the account used for that sign-in; it does not have to match the account in the authoring conversation. The registered Site's audience is public, as requested. Once deployed, visitors can view the portfolio, project notes, résumé and published files without signing in. Only `/admin` and editing/upload endpoints require the authorized administrator account. Public access configuration does not by itself publish the site.
-
-## Where to change things
-
-- `app/portfolio.tsx`: public sections and project artwork.
-- `app/globals.css`: design tokens, layout, breakpoints, and print styles.
-- `lib/portfolio-data.ts`: initial content, shared types, and validation rules.
-- `app/admin/dashboard.tsx`: project and profile editor.
-- `app/api/admin/route.ts`: authorized content reads and writes.
-- `app/api/upload/route.ts`: authorized uploads.
-- `app/api/media/[key]/route.ts`: public file delivery.
-- `lib/admin-auth.ts`: allowed administrator and origin checks.
-- `lib/content.ts`: database reads and writes.
-- `db/schema.ts` and `drizzle/`: schema and migrations.
-- `public/favicon.svg`: custom monogram.
-
-Initial content is used only until the first saved document exists. Later edits to initial content do not overwrite dashboard changes. There are no invented employment dates, testimonials, proficiency percentages, or experience claims.
-
-## Checks
+The public portfolio runs without a `.env.local` file. To enable editing locally, copy `.env.example` to `.env.local` and enter your Supabase settings. Do not commit `.env.local`.
 
 ```sh
 npm test
 npm run typecheck
 npm run build
+npm start
 ```
 
-The tests exercise real route-handler code against an in-memory SQLite database and an in-memory object-storage adapter. They cover authorization, origin enforcement, SQL persistence, drafts, content validation, upload limits/signatures, media responses, and public rendering. They do not replace hosted authentication or D1/R2 integration checks.
+## Maintain and extend
 
-See `docs/IMPLEMENTATION-STATUS.md` for completed verification and the remaining environment-dependent checks.
+- `app/portfolio.tsx`: public sections and custom project artwork.
+- `app/globals.css`: design tokens, responsive layout, themes and print rules.
+- `lib/portfolio-data.ts`: initial profile/projects, shared types and validation.
+- `app/admin/dashboard.tsx`: project/profile editor.
+- `app/admin/login/`: private sign-in interface.
+- `app/api/auth/`: sign-in, session refresh and sign-out.
+- `lib/admin-auth.ts`: provider-verified administrator access and session cookies.
+- `lib/supabase.ts`: server-only API configuration and requests.
+- `lib/content.ts`: persistent content reads/writes.
+- `app/api/admin/route.ts`: authorized document editing.
+- `app/api/upload/route.ts`: authorized uploads and file validation.
+- `app/api/media/[key]/route.ts`: public file delivery.
+- `supabase/setup.sql`: database and bucket setup.
+- `public/favicon.svg`: monogram favicon.
 
-## Extend later
+Initial content is only used when no backend is configured or when its content table has no saved document yet. Once you save via the dashboard, changes to the initial source content do not overwrite the saved document. New projects can be added without changing layout code.
 
-Add a new project through the dashboard without touching layout code. Other content types, such as articles or achievements, can be added as separate sections and schema fields. For schema changes, edit `db/schema.ts`, generate the next migration with `npm run db:generate`, inspect the SQL, and preserve applied migrations. The initial SQL migration and matching metadata are included; the generator could not run in the restricted authoring environment.
+There are no invented employment dates, testimonials, experience claims or proficiency percentages. Project descriptions are grounded in the supplied repositories.
 
-## Publishing
+The old Sites registration in `.openai/hosting.json` is retained only as historical project identity. This Next.js/Vercel application does not use its Cloudflare resources or require ChatGPT sign-in.
 
-`.openai/hosting.json` already contains the registered Site ID. Reuse it; do not register another Site for this checkout. Follow the Sites workflow to build, push the source, package it, and deploy the saved version. Keep runtime values in Sites, not in the hosting manifest. Do not commit `.dev.vars`, local `.env` files, credentials, caches, or runtime directories.
+See [implementation status](docs/IMPLEMENTATION-STATUS.md) for verification details and remaining live-service checks.

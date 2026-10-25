@@ -1,33 +1,21 @@
-# Implementation and verification
+# Vercel migration status
 
-The portfolio application and administrator dashboard are implemented locally. No version has been published. The registered Site's access mode was changed to `public` and confirmed by the hosting service on 2026-10-25; anonymous visitors will be allowed after deployment. Dashboard and write operations remain restricted to the configured administrator.
+The application now uses standard Next.js and targets Vercel. The former Cloudflare Workers build, bindings and hosting-provided authentication have been replaced. Public viewing requires no sign-in and works with the initial profile content before a backend is configured.
 
-## Passed
+## Verified locally
 
-- Strict TypeScript checking of the public React UI, dashboard UI, and shared content/validation module using locally available TypeScript 5.9.3 and React type definitions.
-- Route/content tests using actual application modules, SQLite, and an in-memory bucket adapter.
-- Offline bundling of the actual UI into a browser-openable design review.
-- Initial SQL migration applies successfully in the SQLite tests.
+- Installed the complete, locked minimal dependency tree using cached packages: Next.js 16.3.4, React 19.2.6, Zod 3.25.76 and TypeScript 5.9.3.
+- `npm run typecheck` passes for the application.
+- 22 tests pass against the actual route handlers and server modules using mocked Supabase HTTP responses. They cover public access without a backend, schema validation, verified administrator identity, forged identity headers, origin enforcement, persistence requests, drafts, login cookies, token refresh, sign-out, file limits/signatures and file delivery.
+- A complete production build generates `.next/routes-manifest.json` and the expected App Router routes, including `/`, `/cv`, `/admin`, `/admin/login` and API routes.
+- The local sandbox prevents spawning the TypeScript CLI subprocess. For local build verification only, a temporary Next.js configuration selected TypeScript's compiler API and thread workers. The tracked production config was restored after the build; Vercel uses the standard `next build` path. Type errors were not ignored.
 
-The offline checks used locally available React 19.1.1 and Zod 3.22.4. The production starter declares React 19.2.6 and Zod 3.25.76. Validation against the complete locked production dependency tree remains outstanding.
+## External setup and checks
 
-## Blocked by the authoring environment
+- Supabase credentials have not been supplied. No actual hosted database, bucket, administrator account or password has been created by this change.
+- Run `supabase/setup.sql` and configure the environment variables described in the README to activate editing. Create a confirmed administrator account separately in Supabase.
+- Real Supabase authentication, database permissions and file storage still need a live integration check after setup.
+- Browser interaction/visual QA could not run in the authoring sandbox because browser/server sockets are restricted.
+- Check the latest Vercel Git deployment after the fix is pushed. Clear any old build overrides and keep the output directory at the Next.js default, `.next`.
 
-- Dependency installation: network DNS unavailable, and the npm cache does not contain the starter's full dependency tree. An offline attempt stopped at missing `zod-validation-error`.
-- Production build: the required Vinext package could not be installed.
-- Source synchronization: `git.chatgpt-team.site` could not resolve. No source was pushed and no save/deploy call was made.
-- Local web server: socket creation failed with `Operation not permitted`.
-- Chromium QA: browser launch failed because the sandbox blocked a socket option. No browser interaction, screenshot, or visual QA result is claimed.
-- Drizzle migration generation: dependency installation prevented running the generator. The initial migration and snapshot were authored directly and the SQL was exercised in tests.
-
-## Remaining checks in an unrestricted environment
-
-1. Install the locked dependency tree.
-2. Run `npm test`, `npm run typecheck`, `npm run db:generate`, and the production build. Confirm generation produces no schema change for the existing initial snapshot.
-3. Apply the initial migration to local D1, start the app, and check the portfolio at desktop and mobile widths.
-4. Exercise theme persistence and system preference changes, keyboard navigation, editor changes, saves, screenshots, CV uploads, and the printable résumé in a browser.
-5. Verify denied access for anonymous visitors and a non-admin signed-in account through actual hosted authentication.
-6. Push the source and deploy using the existing registered Site ID. Verify D1 migrations and R2 storage in hosting.
-7. After deployment, verify the portfolio and résumé in a signed-out browser. The Site audience is already public; preserve it. Confirm that the administrator allowlist still protects dashboard access and write operations.
-
-Registration is not proof of publication. The expected hostname in metadata must not be presented as a live URL until deployment succeeds.
+The public portfolio is deliberately independent of backend setup. Dashboard sign-in and writes fail closed until the backend is configured.

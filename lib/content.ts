@@ -1,12 +1,20 @@
-import { env } from "cloudflare:workers";
 import { contentSchema, initialContent, type PortfolioContent } from "./portfolio-data";
+import { backendConfigured, supabaseRequest } from "./supabase";
+
 export async function readContent(): Promise<PortfolioContent> {
-  if (!env.DB) throw new Error("The portfolio database is not configured.");
-  const row = await env.DB.prepare("SELECT data FROM portfolio_content WHERE id = ?").bind("portfolio").first<{ data: string }>();
-  return row ? contentSchema.parse(JSON.parse(row.data)) : structuredClone(initialContent);
+  // The public portfolio can be deployed before its editing backend is set up.
+  if (!backendConfigured()) return structuredClone(initialContent);
+  const response = await supabaseRequest("/rest/v1/portfolio_content?id=eq.portfolio&select=data&limit=1");
+  if (!response.ok) throw new Error(`Could not load portfolio content (${response.status}).`);
+  const rows = await response.json() as { data: unknown }[];
+  return rows.length ? contentSchema.parse(rows[0].data) : structuredClone(initialContent);
 }
+
 export async function writeContent(content: PortfolioContent) {
-  if (!env.DB) throw new Error("The portfolio database is not configured.");
-  await env.DB.prepare("INSERT INTO portfolio_content (id, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at")
-    .bind("portfolio", JSON.stringify(content), new Date().toISOString()).run();
+  const response = await supabaseRequest("/rest/v1/portfolio_content?on_conflict=id", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ id: "portfolio", data: content, updated_at: new Date().toISOString() }),
+  });
+  if (!response.ok) throw new Error(`Could not save portfolio content (${response.status}).`);
 }
